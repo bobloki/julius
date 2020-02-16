@@ -1,6 +1,7 @@
 #include "core/dir.h"
 
 #include "core/file.h"
+#include "core/locale.h"
 #include "core/string.h"
 #include "platform/vita/vita.h"
 
@@ -137,26 +138,35 @@ static void move_left(char *str)
     *str = 0;
 }
 
-const char *dir_get_case_corrected_file(const char *filepath)
+const char *get_case_corrected_file(const char *dir, const char *filepath)
 {
     static char corrected_filename[2 * FILE_NAME_MAX];
 
-    FILE *fp = file_open(filepath, "rb");
-    if (fp) {
-        file_close(fp);
-        return filepath;
+    int dir_len = 0;
+    if (dir) {
+        dir_len = strlen(dir) + 1;
+        strncpy(corrected_filename, dir, dir_len);
+        corrected_filename[dir_len - 1] = '/';
+    } else {
+        dir = ".";
     }
 
-    strncpy(corrected_filename, filepath, 2 * FILE_NAME_MAX);
-    corrected_filename[2 * FILE_NAME_MAX - 1] = 0;
+    strncpy(&corrected_filename[dir_len], filepath, 2 * FILE_NAME_MAX - dir_len);
+    corrected_filename[dir_len + 2 * FILE_NAME_MAX - 1] = 0;
 
-    char *slash = strchr(corrected_filename, '/');
+    FILE *fp = file_open(corrected_filename, "rb");
+    if (fp) {
+        file_close(fp);
+        return corrected_filename;
+    }
+
+    char *slash = strchr(&corrected_filename[dir_len], '/');
     if (!slash) {
-        slash = strchr(corrected_filename, '\\');
+        slash = strchr(&corrected_filename[dir_len], '\\');
     }
     if (slash) {
         *slash = 0;
-        if (correct_case(".", corrected_filename)) {
+        if (correct_case(dir, &corrected_filename[dir_len])) {
             char *path = slash + 1;
             if (*path == '\\') {
                 // double backslash: move everything to the left
@@ -168,9 +178,24 @@ const char *dir_get_case_corrected_file(const char *filepath)
             }
         }
     } else {
-        if (correct_case(".", corrected_filename)) {
+        if (correct_case(dir, corrected_filename)) {
             return corrected_filename;
         }
     }
     return 0;
+}
+
+const char *dir_get_case_corrected_file(const char *filepath, int localizable)
+{
+    if (localizable) {
+        const char *custom_dir = locale_get_directory();
+        if (custom_dir) {
+            const char *path = get_case_corrected_file(custom_dir, filepath);
+            if (path) {
+                return path;
+            }
+        }
+    }
+
+    return get_case_corrected_file(0, filepath);
 }
