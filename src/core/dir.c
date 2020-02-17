@@ -93,6 +93,7 @@ const dir_listing *dir_find_files_with_extension(const char *extension)
         if (stat(name, &file_info) != -1) {
             int m = file_info.st_mode;
             if (S_ISDIR(m) || S_ISCHR(m) || S_ISBLK(m) || S_ISFIFO(m) || S_ISSOCK(m)) {
+                dir_entry_close_name(name);
                 continue;
             }
         }
