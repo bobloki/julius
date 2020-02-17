@@ -8,6 +8,12 @@
 
 #define DIR_MAX_FILES 200
 
+enum {
+    NOT_LOCALIZED = 0,
+    MAY_BE_LOCALIZED = 1,
+    MUST_BE_LOCALIZED = 2
+};
+
 /**
  * Directory listing
  */
