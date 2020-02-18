@@ -110,6 +110,36 @@ const dir_listing *dir_find_files_with_extension(const char *extension)
     return &listing;
 }
 
+const dir_listing *dir_find_all_subdirectories(void)
+{
+    clear_dir_listing();
+    fs_dir_type *d = fs_dir_open(CURRENT_DIR);
+    if (!d) {
+        return &listing;
+    }
+    fs_dir_entry *entry;
+    struct stat file_info;
+    while ((entry = fs_dir_read(d)) && listing.num_files < DIR_MAX_FILES) {
+        const char *name = dir_entry_name(entry);
+        if (stat(name, &file_info) != -1) {
+            int m = file_info.st_mode;
+            // Skip dirs starting with '.': '.', '..', and hidden dirs on *nix systems
+            if (!S_ISDIR(m) || name[0] == '.') {
+                dir_entry_close_name(name);
+                continue;
+            }
+        }
+        strncpy(listing.files[listing.num_files], name, FILE_NAME_MAX);
+        listing.files[listing.num_files][FILE_NAME_MAX - 1] = 0;
+        ++listing.num_files;
+        dir_entry_close_name(name);
+    }
+    fs_dir_close(d);
+    qsort(listing.files, listing.num_files, sizeof(char*), compare_lower);
+
+    return &listing;
+}
+
 static int correct_case(const char *dir, char *filename)
 {
     // Note: we do not use the _w* variants for Windows here, because the
